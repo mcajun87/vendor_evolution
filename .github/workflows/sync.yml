@@ -1,0 +1,43 @@
+name: update_vendor_evolution
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 每天北京时间早上 8:00 自动运行一次
+  workflow_dispatch: # 支持手动点击 Run workflow 随时运行
+
+jobs:
+  sync_latest_from_upstream:
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == github.actor }}
+
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Sync upstream
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # 1. 添加原作者 upstream 仓库
+          git remote add upstream https://github.com/Evolution-X/vendor_evolution.git
+
+          # 2. 获取原作者最新的分支信息
+          git fetch upstream cnb
+
+          # 3. 切换并合并原作者的 cnb 分支
+          git checkout cnb
+          git merge upstream/cnb --no-edit || {
+            echo "发现代码冲突，无法自动合并，请手动检查。"
+            exit 1
+          }
+
+          # 4. 推送到你自己的 Fork 仓库
+          git push origin cnb
